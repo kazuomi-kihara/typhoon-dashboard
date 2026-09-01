@@ -194,7 +194,11 @@ function getSampleTyphoonData() {
 async function fetchRealtimeTyphoons() {
     const TYPHOON_LIST_URL = 'https://www.jma.go.jp/bosai/typhoon/data/targetTc.json';
     try {
-        const response = await fetch(TYPHOON_LIST_URL);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
+        const response = await fetch(TYPHOON_LIST_URL, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (!data || data.length === 0) return [];
@@ -207,7 +211,10 @@ async function fetchRealtimeTyphoons() {
             } catch (e) { console.warn('台風詳細の取得に失敗:', entry, e); }
         }
         return typhoons;
-    } catch (e) { return []; }
+    } catch (e) {
+        console.warn('リアルタイム台風データの取得に失敗/タイムアウト:', e);
+        return [];
+    }
 }
 
 async function fetchTyphoonDetail(entry) {
@@ -1090,7 +1097,13 @@ async function loadDataStatus() {
 }
 
 async function loadRealtimeData() {
-    state.realtimeTyphoons = await fetchRealtimeTyphoons();
+    try {
+        state.realtimeTyphoons = await fetchRealtimeTyphoons();
+    } catch (e) {
+        console.error('loadRealtimeDataエラー:', e);
+        state.realtimeTyphoons = [];
+    }
+
     els.typhoonSelect.innerHTML = '';
     if (state.realtimeTyphoons.length === 0) {
         els.typhoonSelect.innerHTML = '<option value="none">現在発生している台風はありません</option>';
