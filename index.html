@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台風情報ダッシュボード</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- ヘッダー -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1><i class="fas fa-hurricane"></i> 台風情報ダッシュボード</h1>
+            </div>
+            <div class="header-right">
+                <div class="source-toggle">
+                    <span class="toggle-label">データソース:</span>
+                    <button id="btn-source-jma" class="toggle-btn active">気象庁</button>
+                    <button id="btn-source-wn" class="toggle-btn">WeatherNews</button>
+                </div>
+                <button id="btn-settings" class="icon-btn" title="設定・データ管理">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ (JMA モード) -->
+        <main id="view-jma" class="main-view active">
+            <!-- マップエリア -->
+            <div class="map-container">
+                <div id="map"></div>
+                
+                <!-- マップコントロール -->
+                <div class="map-controls">
+                    <button id="btn-toggle-radar" class="map-control-btn" title="雨量レーダーON/OFF">
+                        <i class="fas fa-cloud-showers-heavy"></i> レーダー
+                    </button>
+                    <button id="btn-toggle-heatmap" class="map-control-btn" title="現在の気温分布マップON/OFF">
+                        <i class="fas fa-thermometer-half"></i> 気温マップ
+                    </button>
+                    <button id="btn-center-map" class="map-control-btn" title="台風の現在位置に戻る">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+                </div>
+
+                <!-- 気温マップ凡例 -->
+                <div id="temp-legend" class="temp-legend hidden">
+                    <div class="temp-legend-title">🌡️ 気温凡例</div>
+                    <div class="temp-legend-scale">
+                        <div class="temp-legend-bar"></div>
+                        <div class="temp-legend-labels">
+                            <span>38℃+</span>
+                            <span>35℃</span>
+                            <span>31℃</span>
+                            <span>28℃</span>
+                            <span>25℃-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 情報パネルエリア -->
+            <div class="info-panel">
+                <!-- 現在の台風選択 -->
+                <div class="typhoon-selector" id="typhoon-selector-container">
+                    <label for="typhoon-select">表示する台風:</label>
+                    <select id="typhoon-select">
+                        <option value="none">データ取得中...</option>
+                    </select>
+                </div>
+
+                <!-- リアルタイム情報カード -->
+                <div class="info-cards-container">
+                    <div class="glass-card main-status-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-info-circle"></i> 現在の状況</h3>
+                            <span id="current-time" class="time-badge">-</span>
+                        </div>
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <span class="status-label">中心気圧</span>
+                                <span class="status-value" id="val-pressure">---</span>
+                                <span class="status-unit">hPa</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">最大風速</span>
+                                <span class="status-value" id="val-wind">---</span>
+                                <span class="status-unit">m/s</span>
+                            </div>
+                        </div>
+                        <div class="location-info">
+                            <i class="fas fa-map-marker-alt"></i> <span id="val-location">---</span>
+                        </div>
+                        <div class="grade-info" id="val-grade">---</div>
+                        <div class="distance-info" id="distance-info-container" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                            <button id="btn-get-location" class="action-btn" style="width:100%;"><i class="fas fa-map-marker-alt"></i> 現在地からの距離を測る</button>
+                            <div id="distance-result" class="hidden" style="margin-top:10px; text-align:center; font-weight:bold; color:var(--text-light);"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card warnings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-exclamation-triangle"></i> 警報・注意報</h3>
+                        </div>
+                        <div id="warnings-list" class="warnings-list">
+                            <div class="no-data">情報はありません</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 類似台風比較エリア -->
+                <div class="glass-card comparison-section">
+                    <div class="card-header" id="header-comparison" style="cursor: pointer;">
+                        <h3><i class="fas fa-history"></i> 過去の類似台風 <i id="icon-toggle-compare" class="fas fa-chevron-down icon-toggle-collapsed" style="font-size: 0.8em; margin-left: 6px; transition: transform 0.3s;"></i></h3>
+                        <button id="btn-refresh-compare" class="icon-btn-small" title="比較を更新"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                    <div id="comparison-body" class="comparison-body collapsed">
+                        <div class="comparison-status" id="comparison-status">
+                            データがありません。設定から過去データをダウンロードしてください。
+                        </div>
+                        <div id="comparison-cards-container" class="comparison-cards">
+                            <!-- JSで動的に追加される -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- WeatherNews iframe ビュー -->
+        <main id="view-wn" class="main-view hidden">
+            <iframe id="wn-iframe" src="https://weathernews.jp/typhoon/" frameborder="0" width="100%" height="100%"></iframe>
+            <div class="iframe-overlay-message">
+                ※WeatherNewsのサイトを直接表示しています。一部機能が制限される場合があります。
+            </div>
+        </main>
+    </div>
+
+    <!-- 設定・データ管理モーダル -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-cog"></i> 設定・データ管理</h2>
+                <button id="btn-close-settings" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+                <div class="settings-section">
+                    <h3>過去台風データ (JMA ベストトラック)</h3>
+                    <p class="settings-desc">類似台風の比較やヒートマップ表示に使用するデータをダウンロードしてローカル（ブラウザ内）に保存します。</p>
+                    
+                    <div class="data-status">
+                        保存されているデータ: <strong id="lbl-data-count">0</strong> 件 
+                        <span id="lbl-data-years" class="text-muted">(対象年度: 未設定)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>対象年度範囲:</label>
+                        <div class="year-range-inputs">
+                            <input type="number" id="input-year-start" value="2014" min="1951" max="2026">
+                            <span>〜</span>
+                            <input type="number" id="input-year-end" value="2026" min="1951" max="2026">
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button id="btn-download-data" class="primary-btn">
+                            <i class="fas fa-cloud-download-alt"></i> 気象庁から取得
+                        </button>
+                        <button id="btn-clear-data" class="danger-btn">
+                            <i class="fas fa-trash-alt"></i> データを削除
+                        </button>
+                    </div>
+                    
+                    <div id="data-progress" class="progress-message hidden">
+                        <!-- 進捗メッセージ -->
+                    </div>
+                </div>
+
+                <div class="settings-section" style="margin-top: 2.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                    <h3><i class="fas fa-book"></i> アプリの使い方ガイド</h3>
+                    <p class="settings-desc" style="margin-bottom: 1rem;">このダッシュボードで利用できる主な機能です。</p>
+                    <ul style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.8; margin-left: 1.5rem;">
+                        <li><strong>🌧️ 雨量レーダー:</strong> マップ左下のボタンで、現在の雨雲レーダーをマップに重ねて表示します。</li>
+                        <li><strong>🔥 ヒートマップ:</strong> 上記から「過去データ」を取り込んだ上でオンにすると、過去の台風がよく通ったルートが赤くハイライトされます。</li>
+                        <li><strong>📍 現在地からの距離:</strong> 左パネルの「現在地からの距離を測る」を押すと、台風の中心から現在地（GPS）までの直線距離を計算します。</li>
+                        <li><strong>🌪️ 類似台風の比較:</strong> 現在の台風の位置と勢力を元に、過去の似た台風トップ3を自動で探し出します。</li>
+                        <li><strong>▶ 軌跡アニメーション:</strong> 類似台風カード下部の「▶ 再生」を押すと、当時の動きをアニメーションで再生・比較できます。</li>
+                        <li><strong>📊 暴風域の可視化:</strong> 過去台風の軌跡周辺に、当時の暴風域（赤色）と強風域（黄色）のサイズが円で表示されます。</li>
+                    </ul>
+                </div>
+            </div>
+    <!-- 台風被害詳細モーダル -->
+    <div id="damage-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-card" style="max-width: 650px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-house-damage"></i> <span id="damage-modal-title">台風被害情報</span></h2>
+                <button id="btn-close-damage" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="damage-modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+                <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p style="margin-top: 10px;">デジタル台風から被害情報を取得中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 外部ライブラリ -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- アプリケーションスクリプト -->
+    <script src="app.js"></script>
+</body>
+</html>
