@@ -448,10 +448,9 @@ let layerGroups = { currentTrack: null, currentPosition: null, forecastCircles: 
 function initMap(containerId) {
     map = L.map(containerId, { center: [34, 136], zoom: 4.5, zoomControl: false, attributionControl: true });
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd',
-        maxZoom: 18,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a> | Weather by <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>'
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16,
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ | Weather by <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>'
     }).addTo(map);
     Object.keys(layerGroups).forEach(key => { if (key === 'comparison') { layerGroups[key] = []; } else { layerGroups[key] = L.layerGroup().addTo(map); } });
     return map;
