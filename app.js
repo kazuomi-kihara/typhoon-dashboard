@@ -443,7 +443,7 @@ const COLORS = {
 };
 
 let map = null;
-let layerGroups = { currentTrack: null, currentPosition: null, forecastCircles: null, forecastLine: null, warnings: null, radar: null, heatmap: null, comparison: [], userLocation: null };
+let layerGroups = { currentTrack: null, currentPosition: null, forecastCircles: null, forecastLine: null, warnings: null, radar: null, heatmap: null, comparison: [], userLocation: null, anim: null };
 
 function initMap(containerId) {
     map = L.map(containerId, { center: [34, 136], zoom: 4.5, zoomControl: false, attributionControl: true });
@@ -620,7 +620,7 @@ function drawComparisonTracks(typhoons) {
             const start = t.track[0];
             L.circleMarker([start.lat, start.lon], { radius: 4, color: color, fillColor: color, fillOpacity: 0.8 }).bindPopup(`<div class="map-popup"><strong>${t.name || t.id}</strong> (${t.year}年)<br>最大風速: ${t.maxWind || '-'} kt<br>最低気圧: ${t.minPressure || '-'} hPa</div>`).addTo(lg);
         }
-        lg.addTo(map);
+        // 初期状態はマップに追加しない（レイヤーグループのみ保持）
         layerGroups.comparison.push(lg);
     });
 }
@@ -1164,11 +1164,17 @@ function updateComparison() {
         return;
     }
     els.compareStatus.textContent = '現在位置と勢力に基づく類似台風トップ3';
+
+    // 1. レイヤーグループ（layerGroups.comparison）を作成
+    drawComparisonTracks(similar);
+
+    // 2. カードHTMLを生成
     els.compareCards.innerHTML = similar.map((t, i) => renderComparisonCard(t, i)).join('');
     
+    // 3. チェックボックスイベントバインド
     document.querySelectorAll('.toggle-track-cb').forEach(cb => {
         cb.addEventListener('change', (e) => {
-            const idx = parseInt(e.target.getAttribute('data-index'));
+            const idx = parseInt(e.target.getAttribute('data-index'), 10);
             const lg = layerGroups.comparison[idx];
             if (lg) {
                 if (e.target.checked) map.addLayer(lg);
@@ -1194,11 +1200,6 @@ function updateComparison() {
             openDamageDetailModal(year, tc, name);
         });
     });
-
-    // 先にレイヤーを作成（非表示状態で）
-    drawComparisonTracks(similar);
-    // 初期はすべてマップから非表示にする（チェックなしのため）
-    layerGroups.comparison.forEach(lg => { if (getMap().hasLayer(lg)) getMap().removeLayer(lg); });
 }
 
 async function handleDataDownload() {
@@ -1280,23 +1281,25 @@ function playAnimation(typhoon, btnElement) {
         clearInterval(animationInterval);
         animationInterval = null;
     }
+
+    if (layerGroups.anim) {
+        if (map.hasLayer(layerGroups.anim)) map.removeLayer(layerGroups.anim);
+        layerGroups.anim = null;
+    }
     
     if (btnElement.textContent.includes('停止')) {
-        btnElement.textContent = '▶ アニメーション再生';
-        updateComparison(); // Restore drawing
+        btnElement.textContent = '▶ 再生';
         return;
     }
     
-    document.querySelectorAll('.btn-animate').forEach(b => b.textContent = '▶ アニメーション再生');
-    btnElement.textContent = '⏹ アニメーション停止';
+    document.querySelectorAll('.btn-animate').forEach(b => b.textContent = '▶ 再生');
+    btnElement.textContent = '⏹ 停止';
     
     const track = typhoon.track;
     if (!track || track.length === 0) return;
     
-    layerGroups.comparison.forEach(lg => { if (map.hasLayer(lg)) map.removeLayer(lg); });
-    layerGroups.comparison = [];
     const lg = L.layerGroup().addTo(map);
-    layerGroups.comparison.push(lg);
+    layerGroups.anim = lg;
     
     let currentIndex = 0;
     const color = '#26a69a';
@@ -1309,7 +1312,13 @@ function playAnimation(typhoon, btnElement) {
         if (currentIndex >= track.length) {
             clearInterval(animationInterval);
             animationInterval = null;
-            btnElement.textContent = '▶ アニメーション再生';
+            btnElement.textContent = '▶ 再生';
+            setTimeout(() => {
+                if (layerGroups.anim && map.hasLayer(layerGroups.anim)) {
+                    map.removeLayer(layerGroups.anim);
+                    layerGroups.anim = null;
+                }
+            }, 3000);
             return;
         }
         
