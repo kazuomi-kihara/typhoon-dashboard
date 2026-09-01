@@ -790,8 +790,12 @@ function findSimilarTyphoons(currentTyphoon, pastTyphoons, topN = 3) {
 function renderComparisonCard(typhoon, index) {
     const color = ['#ab47bc', '#26a69a', '#ec407a'][index % 3];
     const scorePct = Math.round(typhoon.similarityScore * 100);
-    const dtUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/summary/wnp/s/${typhoon.year}${typhoon.tcNumber}.html.ja`;
-    const searchUrl = `https://www.google.com/search?q=${typhoon.year}年+台風${typhoon.tcNumber}号+被害`;
+
+    // デジタル台風URL用の番号フォーマット (西暦4桁 + 2桁の台風番号、例: 202401)
+    const tcNumFormatted = String(typhoon.tcNumber).padStart(2, '0');
+    const fullDtId = `${typhoon.year}${tcNumFormatted}`;
+    const dtUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/summary/wnp/s/${fullDtId}.html.ja`;
+    const searchUrl = `https://www.google.com/search?q=${typhoon.year}年+台風${tcNumFormatted}号+被害`;
     const reasonsHtml = (typhoon.similarityReasons && typhoon.similarityReasons.length > 0)
         ? `<div class="similarity-reasons">
             <div class="similarity-reasons-title">💡 類似判定の根拠</div>
@@ -801,7 +805,7 @@ function renderComparisonCard(typhoon, index) {
 
     return `
         <div class="comparison-card" style="border-top: 3px solid ${color};">
-            <h4>${typhoon.year}年 台風${typhoon.tcNumber}号</h4>
+            <h4>${typhoon.year}年 台風${tcNumFormatted}号</h4>
             <div class="typhoon-name">${typhoon.name}</div>
             <div class="score-badge">類似度: ${scorePct}%</div>
             ${reasonsHtml}
@@ -812,7 +816,7 @@ function renderComparisonCard(typhoon, index) {
                 ${typhoon.landfall ? '<div class="landfall-badge">日本上陸</div>' : ''}
             </div>
             <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn-damage-detail" data-year="${typhoon.year}" data-tc="${typhoon.tcNumber}" data-name="${typhoon.name}">
+                <button class="btn-damage-detail" data-year="${typhoon.year}" data-tc="${tcNumFormatted}" data-name="${typhoon.name}">
                     <i class="fas fa-house-damage"></i> 被害詳細を見る
                 </button>
             </div>
@@ -1053,7 +1057,11 @@ function setupEventListeners() {
     els.btnDownloadData.addEventListener('click', handleDataDownload);
     els.btnClearData.addEventListener('click', handleDataClear);
 
-}
+    const btnCloseDamage = document.getElementById('btn-close-damage');
+    const damageModal = document.getElementById('damage-modal');
+    if (btnCloseDamage && damageModal) {
+        btnCloseDamage.addEventListener('click', () => damageModal.classList.add('hidden'));
+    }
 
 function switchSource(source) {
     if (source === 'jma') {
