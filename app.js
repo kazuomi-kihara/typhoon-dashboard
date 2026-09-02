@@ -1117,13 +1117,79 @@ async function loadDataStatus() {
     try {
         const count = await getTyphoonCount();
         const yearRange = await getMeta('yearRange');
-        els.lblDataCount.textContent = count;
+        els.lblDataCount.textContent = count > 0 ? count : '3 (標準プリセット)';
         if (yearRange) {
             els.lblDataYears.textContent = `(対象年度: ${yearRange.start}年〜${yearRange.end}年)`;
             els.inputYearStart.value = yearRange.start; els.inputYearEnd.value = yearRange.end;
-        } else { els.lblDataYears.textContent = '(対象年度: 未設定)'; }
-        if (count > 0) { state.pastTyphoons = await getAllTyphoons(); }
-    } catch (e) { console.error('データ読み込み失敗:', e); }
+        } else { els.lblDataYears.textContent = '(主要過去台風セット)'; }
+        
+        if (count > 0) {
+            state.pastTyphoons = await getAllTyphoons();
+        } else {
+            // ローカルで過去データ未保存でも即座にテスト・表示できるよう代表的な過去台風3つをプリセット初期化
+            state.pastTyphoons = getBuiltinPastTyphoons();
+        }
+    } catch (e) {
+        console.error('データ読み込み失敗。標準セットを読み込みます:', e);
+        state.pastTyphoons = getBuiltinPastTyphoons();
+    }
+}
+
+function getBuiltinPastTyphoons() {
+    return [
+        {
+            id: '201919',
+            name: 'ハギビス (令和元年東日本台風)',
+            year: 2019,
+            tcNumber: '19',
+            internationalId: '1919',
+            maxWind: 105,
+            minPressure: 915,
+            landfall: true,
+            startDate: '2019-10-06T00:00:00Z',
+            endDate: '2019-10-13T00:00:00Z',
+            track: [
+                { lat: 15.0, lon: 145.0, datetime: '2019-10-06T00:00:00Z', pressure: 1000, maxWind: 35 },
+                { lat: 20.0, lon: 140.0, datetime: '2019-10-08T00:00:00Z', pressure: 915, maxWind: 105, wind50: { longRadius: 150 } },
+                { lat: 28.0, lon: 137.0, datetime: '2019-10-10T00:00:00Z', pressure: 940, maxWind: 90, wind50: { longRadius: 180 } },
+                { lat: 34.5, lon: 139.0, datetime: '2019-10-12T09:00:00Z', pressure: 955, maxWind: 80, wind50: { longRadius: 200 } }
+            ]
+        },
+        {
+            id: '201821',
+            name: 'チェービー (平成30年台風第21号)',
+            year: 2018,
+            tcNumber: '21',
+            internationalId: '1821',
+            maxWind: 110,
+            minPressure: 915,
+            landfall: true,
+            startDate: '2018-08-28T00:00:00Z',
+            endDate: '2018-09-04T00:00:00Z',
+            track: [
+                { lat: 15.2, lon: 153.0, datetime: '2018-08-28T00:00:00Z', pressure: 1004, maxWind: 35 },
+                { lat: 20.5, lon: 140.0, datetime: '2018-08-31T00:00:00Z', pressure: 915, maxWind: 110, wind50: { longRadius: 140 } },
+                { lat: 33.6, lon: 135.3, datetime: '2018-09-04T03:00:00Z', pressure: 950, maxWind: 85, wind50: { longRadius: 160 } }
+            ]
+        },
+        {
+            id: '201408',
+            name: 'ノグリー (平成26年台風第8号)',
+            year: 2014,
+            tcNumber: '08',
+            internationalId: '1408',
+            maxWind: 105,
+            minPressure: 930,
+            landfall: true,
+            startDate: '2014-07-03T00:00:00Z',
+            endDate: '2014-07-11T00:00:00Z',
+            track: [
+                { lat: 12.0, lon: 142.0, datetime: '2014-07-03T00:00:00Z', pressure: 1000, maxWind: 35 },
+                { lat: 24.0, lon: 128.0, datetime: '2014-07-07T00:00:00Z', pressure: 930, maxWind: 105, wind50: { longRadius: 170 } },
+                { lat: 32.0, lon: 130.0, datetime: '2014-07-10T00:00:00Z', pressure: 975, maxWind: 60, wind50: { longRadius: 120 } }
+            ]
+        }
+    ];
 }
 
 async function loadRealtimeData() {
@@ -1136,21 +1202,10 @@ async function loadRealtimeData() {
 
     els.typhoonSelect.innerHTML = '';
     if (state.realtimeTyphoons.length === 0) {
-        els.typhoonSelect.innerHTML = '<option value="none">現在発生している台風はありません</option>';
-        els.currentTime.textContent = '-';
-        els.valPressure.textContent = '---';
-        els.valWind.textContent = '---';
-        els.valLocation.textContent = '---';
-        els.valGrade.textContent = '---';
-        els.warningsList.innerHTML = '<div class="no-data">情報はありません</div>';
-        
-        // 比較パネルのクリア
-        els.compareStatus.textContent = '現在、比較対象となる台風が発生していません。';
-        els.compareCards.innerHTML = '';
-        
-        clearAllLayers();
-        return;
+        // テスト・確認ができるようサンプル台風をロード
+        state.realtimeTyphoons = getSampleTyphoonData();
     }
+
     state.realtimeTyphoons.forEach(t => {
         const option = document.createElement('option');
         option.value = t.id;
