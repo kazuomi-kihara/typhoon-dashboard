@@ -987,11 +987,57 @@ async function openDamageDetailModal(year, tcNumber, name) {
                     <strong>💡 該当台風の記録ページへ直接アクセスできます：</strong><br>
                     ${year}年 台風${tcNumber}号 (${name}) の詳細な人的・物的被害記録、当時の気象チャートは公式データベースでご確認いただけます。
                 </div>
-                <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
-                    <a href="${dtUrl}" target="_blank" class="primary-btn" style="text-align: center; text-decoration: none;">
-                        <i class="fas fa-external-link-alt"></i> 「デジタル台風」で被害記録を見る
+                    <a href="${googleSearchUrl}" target="_blank" class="primary-btn" style="background: rgba(255,152,0,0.2); border-color: rgba(255,152,0,0.5); color: #ffb74d; text-align: center; text-decoration: none;">
+                        <i class="fas fa-search"></i> Googleで被害報道ニュースを検索
                     </a>
-                    <a href="${googleSearchUrl}" target="_blank" class="primary-btn" style="ba    initMap('map');
+                </div>
+            </div>
+        `;
+    }
+}
+
+// ============================================================
+// app.js main logic
+// ============================================================
+const state = { realtimeTyphoons: [], pastTyphoons: [], currentTyphoonId: null, isRadarOn: false, isHeatmapOn: false };
+const els = {};
+
+async function init() {
+    els.viewJma = document.getElementById('view-jma');
+    els.viewWn = document.getElementById('view-wn');
+    els.btnJma = document.getElementById('btn-source-jma');
+    els.btnWn = document.getElementById('btn-source-wn');
+    els.btnSettings = document.getElementById('btn-settings');
+    els.settingsModal = document.getElementById('settings-modal');
+    els.btnCloseSettings = document.getElementById('btn-close-settings');
+    els.typhoonSelect = document.getElementById('typhoon-select');
+    els.valPressure = document.getElementById('val-pressure');
+    els.valWind = document.getElementById('val-wind');
+    els.valLocation = document.getElementById('val-location');
+    els.valGrade = document.getElementById('val-grade');
+    els.currentTime = document.getElementById('current-time');
+    els.warningsList = document.getElementById('warnings-list');
+    els.btnRadar = document.getElementById('btn-toggle-radar');
+    els.btnHeatmap = document.getElementById('btn-toggle-heatmap');
+    els.btnCenter = document.getElementById('btn-center-map');
+    els.compareStatus = document.getElementById('comparison-status');
+    els.compareCards = document.getElementById('comparison-cards-container');
+    els.btnRefreshCompare = document.getElementById('btn-refresh-compare');
+    els.lblDataCount = document.getElementById('lbl-data-count');
+    els.lblDataYears = document.getElementById('lbl-data-years');
+    els.inputYearStart = document.getElementById('input-year-start');
+    els.inputYearEnd = document.getElementById('input-year-end');
+    els.btnDownloadData = document.getElementById('btn-download-data');
+    els.btnClearData = document.getElementById('btn-clear-data');
+    els.dataProgress = document.getElementById('data-progress');
+    els.btnGetLocation = document.getElementById('btn-get-location');
+    els.distanceResult = document.getElementById('distance-result');
+    els.tempLegend = document.getElementById('temp-legend');
+    els.headerComparison = document.getElementById('header-comparison');
+    els.comparisonBody = document.getElementById('comparison-body');
+    els.iconToggleCompare = document.getElementById('icon-toggle-compare');
+
+    initMap('map');
     setupEventListeners();
     
     // データ初期化を非同期並列実行
