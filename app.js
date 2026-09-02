@@ -991,76 +991,24 @@ async function openDamageDetailModal(year, tcNumber, name) {
                     <a href="${dtUrl}" target="_blank" class="primary-btn" style="text-align: center; text-decoration: none;">
                         <i class="fas fa-external-link-alt"></i> 「デジタル台風」で被害記録を見る
                     </a>
-                    <a href="${googleSearchUrl}" target="_blank" class="primary-btn" style="background: rgba(255,152,0,0.2); border-color: rgba(255,152,0,0.5); color: #ffb74d; text-align: center; text-decoration: none;">
-                        <i class="fas fa-search"></i> Googleで被害報道ニュースを検索
-                    </a>
-                </div>
-            </div>
-        `;
-    }
-}
-
-// ============================================================
-// app.js main logic
-// ============================================================
-const state = { realtimeTyphoons: [], pastTyphoons: [], currentTyphoonId: null, isRadarOn: false, isHeatmapOn: false };
-const els = {};
-
-async function init() {
-    els.viewJma = document.getElementById('view-jma');
-    els.viewWn = document.getElementById('view-wn');
-    els.btnJma = document.getElementById('btn-source-jma');
-    els.btnWn = document.getElementById('btn-source-wn');
-    els.btnSettings = document.getElementById('btn-settings');
-    els.settingsModal = document.getElementById('settings-modal');
-    els.btnCloseSettings = document.getElementById('btn-close-settings');
-    els.typhoonSelect = document.getElementById('typhoon-select');
-    els.valPressure = document.getElementById('val-pressure');
-    els.valWind = document.getElementById('val-wind');
-    els.valLocation = document.getElementById('val-location');
-    els.valGrade = document.getElementById('val-grade');
-    els.currentTime = document.getElementById('current-time');
-    els.warningsList = document.getElementById('warnings-list');
-    els.btnRadar = document.getElementById('btn-toggle-radar');
-    els.btnHeatmap = document.getElementById('btn-toggle-heatmap');
-    els.btnCenter = document.getElementById('btn-center-map');
-    els.compareStatus = document.getElementById('comparison-status');
-    els.compareCards = document.getElementById('comparison-cards-container');
-    els.btnRefreshCompare = document.getElementById('btn-refresh-compare');
-    els.lblDataCount = document.getElementById('lbl-data-count');
-    els.lblDataYears = document.getElementById('lbl-data-years');
-    els.inputYearStart = document.getElementById('input-year-start');
-    els.inputYearEnd = document.getElementById('input-year-end');
-    els.btnDownloadData = document.getElementById('btn-download-data');
-    els.btnClearData = document.getElementById('btn-clear-data');
-    els.dataProgress = document.getElementById('data-progress');
-    els.btnGetLocation = document.getElementById('btn-get-location');
-    els.distanceResult = document.getElementById('distance-result');
-    els.tempLegend = document.getElementById('temp-legend');
-    els.headerComparison = document.getElementById('header-comparison');
-    els.comparisonBody = document.getElementById('comparison-body');
-    els.iconToggleCompare = document.getElementById('icon-toggle-compare');
-
-    initMap('map');
+                    <a href="${googleSearchUrl}" target="_blank" class="primary-btn" style="ba    initMap('map');
     setupEventListeners();
     
-    // データ初期化を非同期並列実行（UIブロッキングを完全排除）
-    Promise.allSettled([
-        loadRealtimeData(),
-        loadDataStatus()
-    ]);
+    // データ初期化を非同期並列実行
+    loadRealtimeData().catch(e => console.error(e));
+    loadDataStatus().catch(e => console.error(e));
 }
 
 function setupEventListeners() {
-    els.btnJma.addEventListener('click', () => switchSource('jma'));
-    els.btnWn.addEventListener('click', () => switchSource('wn'));
-    els.typhoonSelect.addEventListener('change', (e) => selectTyphoon(e.target.value));
-    els.btnRadar.addEventListener('click', async () => {
+    els.btnJma?.addEventListener('click', () => switchSource('jma'));
+    els.btnWn?.addEventListener('click', () => switchSource('wn'));
+    els.typhoonSelect?.addEventListener('change', (e) => selectTyphoon(e.target.value));
+    els.btnRadar?.addEventListener('click', async () => {
         state.isRadarOn = !state.isRadarOn;
         els.btnRadar.classList.toggle('active', state.isRadarOn);
         await toggleRadar(state.isRadarOn);
     });
-    els.btnHeatmap.addEventListener('click', async () => {
+    els.btnHeatmap?.addEventListener('click', async () => {
         state.isHeatmapOn = !state.isHeatmapOn;
         els.btnHeatmap.classList.toggle('active', state.isHeatmapOn);
         if (state.isHeatmapOn) {
@@ -1075,12 +1023,12 @@ function setupEventListeners() {
             if (els.tempLegend) els.tempLegend.classList.add('hidden');
         }
     });
-    els.btnCenter.addEventListener('click', () => {
+    els.btnCenter?.addEventListener('click', () => {
         const current = getCurrentTyphoon();
         if (current && current.current) { focusOnPosition(current.current.lat, current.current.lon); }
     });
-    els.btnRefreshCompare.addEventListener('click', (e) => {
-        e.stopPropagation(); // アコーディオンの開閉イベント発生を防止
+    els.btnRefreshCompare?.addEventListener('click', (e) => {
+        e.stopPropagation();
         updateComparison();
     });
     if (els.headerComparison) {
@@ -1093,16 +1041,17 @@ function setupEventListeners() {
             }
         });
     }
-    els.btnSettings.addEventListener('click', () => els.settingsModal.classList.remove('hidden'));
-    els.btnCloseSettings.addEventListener('click', () => els.settingsModal.classList.add('hidden'));
-    els.btnDownloadData.addEventListener('click', handleDataDownload);
-    els.btnClearData.addEventListener('click', handleDataClear);
+    els.btnSettings?.addEventListener('click', () => els.settingsModal?.classList.remove('hidden'));
+    els.btnCloseSettings?.addEventListener('click', () => els.settingsModal?.classList.add('hidden'));
+    els.btnDownloadData?.addEventListener('click', handleDataDownload);
+    els.btnClearData?.addEventListener('click', handleDataClear);
 
     const btnCloseDamage = document.getElementById('btn-close-damage');
     const damageModal = document.getElementById('damage-modal');
     if (btnCloseDamage && damageModal) {
         btnCloseDamage.addEventListener('click', () => damageModal.classList.add('hidden'));
     }
+}
 
 function switchSource(source) {
     if (source === 'jma') {
