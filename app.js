@@ -193,28 +193,58 @@ function getSampleTyphoonData() {
 
 async function fetchRealtimeTyphoons() {
     const TYPHOON_LIST_URL = 'https://www.jma.go.jp/bosai/typhoon/data/targetTc.json';
+    const PROXY_URL = `https://api.allorigins.win/get?url=${encodeURIComponent(TYPHOON_LIST_URL)}`;
+    
+    // 1. 直接取得（タイムアウト 3秒）
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
         const response = await fetch(TYPHOON_LIST_URL, { signal: controller.signal });
         clearTimeout(timeoutId);
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        if (!data || data.length === 0) return [];
-
-        const typhoons = [];
-        for (const entry of data) {
-            try {
-                const detail = await fetchTyphoonDetail(entry);
-                if (detail) typhoons.push(detail);
-            } catch (e) { console.warn('台風詳細の取得に失敗:', entry, e); }
+        if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+                const typhoons = [];
+                for (const entry of data) {
+                    try {
+                        const detail = await fetchTyphoonDetail(entry);
+                        if (detail) typhoons.push(detail);
+                    } catch (e) {}
+                }
+                if (typhoons.length > 0) return typhoons;
+            }
         }
-        return typhoons;
     } catch (e) {
-        console.warn('リアルタイム台風データの取得に失敗/タイムアウト:', e);
-        return [];
+        console.warn('直接データ取得失敗/タイムアウト。プロキシで再試行中...', e);
     }
+
+    // 2. プロキシ経由で試行（タイムアウト 4秒）
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const response = await fetch(PROXY_URL, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+            const result = await response.json();
+            const data = JSON.parse(result.contents);
+            if (Array.isArray(data) && data.length > 0) {
+                const typhoons = [];
+                for (const entry of data) {
+                    try {
+                        const detail = await fetchTyphoonDetail(entry);
+                        if (detail) typhoons.push(detail);
+                    } catch (e) {}
+                }
+                if (typhoons.length > 0) return typhoons;
+            }
+        }
+    } catch (e) {
+        console.warn('プロキシデータ取得失敗:', e);
+    }
+
+    return [];
 }
 
 async function fetchTyphoonDetail(entry) {
@@ -1013,8 +1043,12 @@ async function init() {
 
     initMap('map');
     setupEventListeners();
-    await loadDataStatus();
-    await loadRealtimeData();
+    
+    // データ初期化を非同期並列実行（UIブロッキングを完全排除）
+    Promise.allSettled([
+        loadRealtimeData(),
+        loadDataStatus()
+    ]);
 }
 
 function setupEventListeners() {
