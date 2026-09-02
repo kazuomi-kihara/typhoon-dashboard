@@ -828,8 +828,9 @@ function renderComparisonCard(typhoon, index) {
     const color = ['#ab47bc', '#26a69a', '#ec407a'][index % 3];
     const scorePct = Math.round(typhoon.similarityScore * 100);
 
-    // デジタル台風URL用の番号フォーマット (西暦4桁 + 2桁の台風番号、例: 202401)
-    const tcNumFormatted = String(typhoon.tcNumber).padStart(2, '0');
+    // デジタル台風URL用の番号フォーマット (西暦4桁 + 2桁の台風番号、例: 201408)
+    const rawTc = String(typhoon.tcNumber || typhoon.internationalId || '1').trim();
+    const tcNumFormatted = (rawTc.length >= 2 ? rawTc.slice(-2) : rawTc).padStart(2, '0');
     const fullDtId = `${typhoon.year}${tcNumFormatted}`;
     const dtUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/summary/wnp/s/${fullDtId}.html.ja`;
     const searchUrl = `https://www.google.com/search?q=${typhoon.year}年+台風${tcNumFormatted}号+被害`;
