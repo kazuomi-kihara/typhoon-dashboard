@@ -248,14 +248,41 @@ async function fetchRealtimeTyphoons() {
 }
 
 async function fetchTyphoonDetail(entry) {
+    const eventId = entry.eventId || entry.id || entry.tropicalCyclone;
+    const url = `https://www.jma.go.jp/bosai/typhoon/data/${eventId}/specifications.json`;
+
+    // 1. 直接取得
     try {
-        const eventId = entry.eventId || entry.id || entry.tropicalCyclone;
-        const url = `https://www.jma.go.jp/bosai/typhoon/data/${eventId}/specifications.json`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        return normalizeJMAData(data, entry);
-    } catch (e) { return normalizeBasicEntry(entry); }
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+            const data = await response.json();
+            return normalizeJMAData(data, entry);
+        }
+    } catch (e) {
+        console.warn(`詳細直接取得失敗(${eventId})。プロキシ再試行...`);
+    }
+
+    // 2. CORSプロキシ経由
+    try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(proxyUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+            const result = await response.json();
+            const data = JSON.parse(result.contents);
+            return normalizeJMAData(data, entry);
+        }
+    } catch (e) {
+        console.warn(`プロキシ詳細取得失敗(${eventId})。基本情報で表示します。`);
+    }
+
+    // 3. 全て失敗しても基本情報だけで表示
+    return normalizeBasicEntry(entry);
 }
 
 function normalizeJMAData(data, entry) {
@@ -1020,6 +1047,14 @@ async function init() {
     els.warningsList = document.getElementById('warnings-list');
     els.btnRadar = document.getElementById('btn-toggle-radar');
     els.btnHeatmap = document.getElementById('btn-toggle-heatmap');
+    els.btnWeatherChart = document.getElementById('btn-toggle-weather-chart');
+    els.weatherChartPanel = document.getElementById('weather-chart-panel');
+    els.btnCloseWeatherChart = document.getElementById('btn-close-weather-chart');
+    els.weatherChartImg = document.getElementById('weather-chart-img');
+    els.weatherChartLoading = document.getElementById('weather-chart-loading');
+    els.btnChartAsjp = document.getElementById('btn-chart-type-asjp');
+    els.btnChartFsjp24 = document.getElementById('btn-chart-type-fsjp24');
+    els.btnChartFsjp48 = document.getElementById('btn-chart-type-fsjp48');
     els.btnCenter = document.getElementById('btn-center-map');
     els.compareStatus = document.getElementById('comparison-status');
     els.compareCards = document.getElementById('comparison-cards-container');
@@ -1050,6 +1085,40 @@ function setupEventListeners() {
     els.btnJma?.addEventListener('click', () => switchSource('jma'));
     els.btnWn?.addEventListener('click', () => switchSource('wn'));
     els.typhoonSelect?.addEventListener('change', (e) => selectTyphoon(e.target.value));
+
+    // 気圧配置（天気図）ボタン
+    els.btnWeatherChart?.addEventListener('click', () => {
+        state.isWeatherChartOn = !state.isWeatherChartOn;
+        els.btnWeatherChart.classList.toggle('active', state.isWeatherChartOn);
+        if (state.isWeatherChartOn) {
+            els.weatherChartPanel?.classList.remove('hidden');
+            loadWeatherChart('asjp');
+        } else {
+            els.weatherChartPanel?.classList.add('hidden');
+        }
+    });
+
+    els.btnCloseWeatherChart?.addEventListener('click', () => {
+        state.isWeatherChartOn = false;
+        els.btnWeatherChart?.classList.remove('active');
+        els.weatherChartPanel?.classList.add('hidden');
+    });
+
+    // 天気図タブ切り替え（実況・24時間後・48時間後）
+    const chartTabs = [
+        { btn: els.btnChartAsjp, type: 'asjp' },
+        { btn: els.btnChartFsjp24, type: 'fsjp24' },
+        { btn: els.btnChartFsjp48, type: 'fsjp48' }
+    ];
+
+    chartTabs.forEach(({ btn, type }) => {
+        btn?.addEventListener('click', () => {
+            chartTabs.forEach(t => t.btn?.classList.remove('active'));
+            btn.classList.add('active');
+            loadWeatherChart(type);
+        });
+    });
+
     els.btnRadar?.addEventListener('click', async () => {
         state.isRadarOn = !state.isRadarOn;
         els.btnRadar.classList.toggle('active', state.isRadarOn);
@@ -1097,6 +1166,52 @@ function setupEventListeners() {
     const damageModal = document.getElementById('damage-modal');
     if (btnCloseDamage && damageModal) {
         btnCloseDamage.addEventListener('click', () => damageModal.classList.add('hidden'));
+    }
+}
+
+async function loadWeatherChart(type) {
+    if (!els.weatherChartImg) return;
+    if (els.weatherChartLoading) els.weatherChartLoading.classList.remove('hidden');
+    els.weatherChartImg.style.opacity = '0.3';
+
+    try {
+        // 気象庁の天気図メタデータ (list.json) を取得して最新の画像ファイル名を特定
+        const listRes = await fetch('https://www.jma.go.jp/bosai/weather_map/data/list.json');
+        if (!listRes.ok) throw new Error('Failed to fetch weather map list');
+        const listData = await listRes.json();
+
+        let filename = '';
+        if (type === 'asjp') {
+            const nowList = listData?.near?.now || [];
+            filename = nowList[nowList.length - 1];
+        } else if (type === 'fsjp24') {
+            const ft24List = listData?.near?.ft24 || [];
+            filename = ft24List[ft24List.length - 1];
+        } else if (type === 'fsjp48') {
+            const ft48List = listData?.near?.ft48 || [];
+            filename = ft48List[ft48List.length - 1];
+        }
+
+        if (!filename) throw new Error('No image found for type: ' + type);
+
+        const imgUrl = `https://www.jma.go.jp/bosai/weather_map/data/png/${filename}`;
+
+        const img = new Image();
+        img.onload = () => {
+            els.weatherChartImg.src = imgUrl;
+            els.weatherChartImg.style.opacity = '1';
+            if (els.weatherChartLoading) els.weatherChartLoading.classList.add('hidden');
+        };
+        img.onerror = () => {
+            console.warn('天気図画像の描画に失敗:', imgUrl);
+            if (els.weatherChartLoading) els.weatherChartLoading.classList.add('hidden');
+            els.weatherChartImg.style.opacity = '1';
+        };
+        img.src = imgUrl;
+    } catch (e) {
+        console.warn('天気図list.json取得エラー:', e);
+        if (els.weatherChartLoading) els.weatherChartLoading.classList.add('hidden');
+        els.weatherChartImg.style.opacity = '1';
     }
 }
 

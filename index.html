@@ -46,6 +46,9 @@
                 
                 <!-- マップコントロール -->
                 <div class="map-controls">
+                    <button id="btn-toggle-weather-chart" class="map-control-btn" title="気圧配置（実況天気図・等圧線）表示">
+                        <i class="fas fa-water"></i> 気圧配置(天気図)
+                    </button>
                     <button id="btn-toggle-radar" class="map-control-btn" title="雨量レーダーON/OFF">
                         <i class="fas fa-cloud-showers-heavy"></i> レーダー
                     </button>
@@ -55,6 +58,29 @@
                     <button id="btn-center-map" class="map-control-btn" title="台風の現在位置に戻る">
                         <i class="fas fa-crosshairs"></i>
                     </button>
+                </div>
+
+                <!-- 気圧配置（天気図）フローティングパネル -->
+                <div id="weather-chart-panel" class="weather-chart-panel hidden">
+                    <div class="weather-chart-header">
+                        <span class="weather-chart-title"><i class="fas fa-water"></i> 気圧配置・天気図 (気象庁)</span>
+                        <div class="weather-chart-actions">
+                            <button id="btn-chart-type-asjp" class="chart-tab-btn active">実況 (現在)</button>
+                            <button id="btn-chart-type-fsjp24" class="chart-tab-btn">24h予想</button>
+                            <button id="btn-chart-type-fsjp48" class="chart-tab-btn">48h予想</button>
+                            <button id="btn-close-weather-chart" class="close-btn-mini">&times;</button>
+                        </div>
+                    </div>
+                    <div class="weather-chart-body">
+                        <img id="weather-chart-img" src="https://www.jma.go.jp/bosai/weather_map/data/png/asjp.png" alt="気圧配置天気図" />
+                        <div id="weather-chart-loading" class="chart-loading hidden">
+                            <i class="fas fa-spinner fa-spin"></i> 読み込み中...
+                        </div>
+                    </div>
+                    <div class="weather-chart-footer">
+                        <span>※高気圧・低気圧・等圧線・前線の配置を表示中</span>
+                        <a id="weather-chart-link" href="https://www.jma.go.jp/bosai/weather_map/" target="_blank">気象庁公式で拡大 <i class="fas fa-external-link-alt"></i></a>
+                    </div>
                 </div>
 
                 <!-- 気温マップ凡例 -->
